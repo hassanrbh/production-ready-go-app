@@ -1,0 +1,76 @@
+name: Sample workflow
+
+on:
+ workflow_dispatch
+
+env:
+  SERVER: abc
+  CLOUD: Azure
+
+jobs:
+  job1:
+    runs-on: ubuntu-latest
+    name: Job Number One
+    timeout-minutes: 360 # default is 360
+    env:
+      MESSAGE: Variable available to all steps in the job
+    steps:
+      - id: step1
+        name: Say Hello
+        continue-on-error: false
+        env:
+          USERNAME: Geert
+        run: |
+          echo Hello $USERNAME, welcome to $CLOUD
+          echo "::set-output name=message::Hello $USERNAME"
+          echo $MESSAGE
+      - name: Say Hello Again
+        run: echo Hello Again
+      - name: Print env vars
+        # see https://docs.github.com/en/actions/reference/environment-variables#default-environment-variables
+        run: |
+          echo GITHUB_WORKFLOW: $GITHUB_WORKFLOW
+          echo GITHUB_RUN_ID: $GITHUB_RUN_ID
+          echo GITHUB_REPOSITORY: $GITHUB_REPOSITORY
+          echo GITHUB_EVENT_NAME: $GITHUB_EVENT_NAME
+          echo GITHUB_WORKSPACE: $GITHUB_WORKSPACE
+          echo GITHUB_SHA: $GITHUB_SHA
+          echo GITHUB_REF: $GITHUB_REF
+          echo GITHUB_ACTOR: $GITHUB_ACTOR
+    outputs:
+      # available to all dependent jobs; see job3 below
+      # needs is actually a context https://docs.github.com/en/actions/reference/context-and-expression-syntax-for-github-actions#contexts
+      output1: ${{ steps.step1.outputs.message }}
+  job2:
+    runs-on: ubuntu-latest
+    name: Job Number Two
+    steps:
+      - name: Hello from Job 2
+        run: echo Hello from Job 2
+  job3:
+    # no name; name will be job id job3
+    runs-on: ubuntu-latest
+    needs: job1
+    if: always() # job depends on job 1 but should always run
+    steps:
+      - name: Hello from Job 3
+        run:  | 
+          echo Hello from Job 3
+          echo ${{ needs.job1.outputs.output1 }}
+  job4:
+    name: Job with environment
+    environment: test  # create environment in settings and set reviewers and or timer
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Hello from job 4 with environment
+        run: echo Hello from job 4
+  job5:
+    name: Job with expression
+    # use github context in the expression; further below use the env var
+    # note that expressions are in ${{ }}
+    if: ${{ github.actor == 'gbaeke'}}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Hello from job 5 with expression
+        run: echo Hello $GITHUB_ACTOR
+
